@@ -1,0 +1,214 @@
+    void DrawTriangularCanopy()
+    {
+        const Color roofTop{ 0.15f, 0.15f, 0.18f }; // Dark gray/black roof
+        const Color roofUnderside{ 0.65f, 0.45f, 0.25f }; // Wooden slats
+        const Color trim{ 0.2f, 0.2f, 0.22f };
+
+        // The roof is a large triangle extending from the center outward and downward
+        // Center peak at X=0, Y=6.0
+        // Left base at X=-8.0, Y=2.0
+        // Right base at X=8.0, Y=2.0
+        // Depth from Z=-2.0 to Z=2.0
+
+        glBegin(GL_TRIANGLES);
+
+        // Front Face
+        SetColor(roofTop);
+        glVertex3f(0.0f, 6.0f, 2.0f);
+        glVertex3f(-8.0f, 2.0f, 2.0f);
+        glVertex3f(8.0f, 2.0f, 2.0f);
+
+        // Back Face
+        glVertex3f(0.0f, 6.0f, -2.0f);
+        glVertex3f(8.0f, 2.0f, -2.0f);
+        glVertex3f(-8.0f, 2.0f, -2.0f);
+
+        glEnd();
+
+        glBegin(GL_QUADS);
+        // Left Slant Roof
+        SetColor(roofTop);
+        glVertex3f(0.0f, 6.0f, 2.0f);
+        glVertex3f(-8.0f, 2.0f, 2.0f);
+        glVertex3f(-8.0f, 2.0f, -2.0f);
+        glVertex3f(0.0f, 6.0f, -2.0f);
+
+        // Right Slant Roof
+        glVertex3f(0.0f, 6.0f, 2.0f);
+        glVertex3f(0.0f, 6.0f, -2.0f);
+        glVertex3f(8.0f, 2.0f, -2.0f);
+        glVertex3f(8.0f, 2.0f, 2.0f);
+
+        // Underside (Wooden Slats simulation)
+        SetColor(roofUnderside);
+        glVertex3f(-8.0f, 2.0f, 2.0f);
+        glVertex3f(0.0f, 6.0f, 2.0f);
+        glVertex3f(0.0f, 6.0f, -2.0f);
+        glVertex3f(-8.0f, 2.0f, -2.0f);
+
+        glVertex3f(8.0f, 2.0f, 2.0f);
+        glVertex3f(8.0f, 2.0f, -2.0f);
+        glVertex3f(0.0f, 6.0f, -2.0f);
+        glVertex3f(0.0f, 6.0f, 2.0f);
+
+        glEnd();
+        
+        // Let's add some decorative vertical wooden beams underneath
+        for (float x = -6.0f; x <= 6.0f; x += 1.0f)
+        {
+            if (std::abs(x) < 0.1f) continue; // Skip center where the pillar is
+            float yTop = 6.0f - (std::abs(x) / 8.0f) * 4.0f; // matches roof slope
+            DrawBox(x - 0.05f, 2.5f, 0.0f, 0.1f, yTop - 2.5f, 0.1f, 
+                roofUnderside, Shade(roofUnderside, 0.8f), Shade(roofUnderside, 1.1f));
+        }
+    }
+
+    void DrawGatehouse()
+    {
+        const Color wall{ 0.75f, 0.75f, 0.72f }; // Light stone
+        const Color stoneTrim{ 0.65f, 0.65f, 0.62f };
+
+        // Left block
+        DrawBox(-6.0f, 0.0f, -1.0f, 4.0f, 2.5f, 2.0f, wall, Shade(wall, 0.8f), Shade(wall, 1.05f));
+        // Right block
+        DrawBox(2.0f, 0.0f, -1.0f, 4.0f, 2.5f, 2.0f, wall, Shade(wall, 0.8f), Shade(wall, 1.05f));
+        // Top bridge (sign area)
+        DrawBox(-6.0f, 2.5f, -1.0f, 12.0f, 1.5f, 2.0f, wall, Shade(wall, 0.8f), Shade(wall, 1.05f));
+
+        // Sign text block placeholder (Blue text on wall)
+        DrawBox(-2.5f, 3.2f, 1.01f, 5.0f, 0.4f, 0.05f, { 0.1f, 0.2f, 0.6f }, { 0.1f, 0.2f, 0.6f }, { 0.1f, 0.2f, 0.6f });
+
+        // Add some small decorative windows
+        for (float x : {-5.0f, -4.0f, -3.0f, 3.0f, 4.0f, 5.0f})
+        {
+            DrawBox(x - 0.2f, 0.8f, 1.01f, 0.4f, 0.6f, 0.05f, { 0.1f, 0.1f, 0.1f }, { 0.1f, 0.1f, 0.1f }, { 0.1f, 0.1f, 0.1f });
+        }
+    }
+
+    void DrawCentralPillar()
+    {
+        const Color pillarBase{ 0.8f, 0.8f, 0.8f };
+        const Color metal{ 0.3f, 0.3f, 0.3f };
+        
+        // Base of the pillar
+        DrawCylinderPost(0.0f, 0.0f, 0.0f, 2.5f, 0.4f, pillarBase);
+        
+        // Middle thin part (from gatehouse roof to canopy)
+        DrawCylinderPost(0.0f, 0.0f, 4.0f, 6.0f, 0.2f, pillarBase);
+        
+        // Decorative umbrella-like structure spreading out
+        glBegin(GL_LINES);
+        SetColor(metal);
+        for (int i = 0; i < 16; ++i)
+        {
+            float angle = 3.14159f * 2.0f * i / 16.0f;
+            float endX = std::cos(angle) * 1.5f;
+            float endZ = std::sin(angle) * 1.5f;
+            glVertex3f(0.0f, 4.5f, 0.0f);
+            glVertex3f(endX, 5.5f, endZ);
+        }
+        glEnd();
+    }
+
+    void DrawFencing()
+    {
+        const Color metal{ 0.1f, 0.1f, 0.1f };
+        const Color gold{ 0.8f, 0.7f, 0.2f };
+
+        // Fences in the main arch (-2.0 to 2.0)
+        DrawBox(-2.0f, 1.0f, 0.0f, 4.0f, 0.05f, 0.05f, metal, metal, metal);
+        DrawBox(-2.0f, 1.8f, 0.0f, 4.0f, 0.05f, 0.05f, metal, metal, metal);
+
+        for (float x = -1.9f; x < 2.0f; x += 0.2f)
+        {
+            DrawBox(x - 0.02f, 0.0f, 0.0f, 0.04f, 2.0f, 0.04f, metal, metal, metal);
+            // Gold decoration
+            DrawBox(x - 0.05f, 0.8f, -0.01f, 0.1f, 0.1f, 0.06f, gold, Shade(gold, 0.8f), Shade(gold, 1.1f));
+        }
+
+        // Side small arch fences
+        for (float x : {-2.5f, 2.5f})
+        {
+            DrawBox(x - 0.5f, 1.0f, 0.0f, 1.0f, 0.05f, 0.05f, metal, metal, metal);
+            for (float sx = x - 0.4f; sx < x + 0.5f; sx += 0.2f)
+            {
+                DrawBox(sx - 0.02f, 0.0f, 0.0f, 0.04f, 1.5f, 0.04f, metal, metal, metal);
+            }
+        }
+    }
+    
+    void DrawHangingLamps()
+    {
+        const Color lampColor{ 0.2f, 0.2f, 0.2f };
+        const Color lightColor{ 0.9f, 0.9f, 0.8f };
+        
+        // Two lamps hanging under the canopy
+        for (float x : {-3.0f, 3.0f})
+        {
+            // Chain
+            DrawBox(x - 0.02f, 3.5f, 1.0f, 0.04f, 1.5f, 0.04f, lampColor, lampColor, lampColor);
+            // Lamp top
+            DrawBox(x - 0.2f, 3.4f, 0.8f, 0.4f, 0.1f, 0.4f, lampColor, lampColor, lampColor);
+            // Lamp body
+            DrawCylinderPost(x, 1.0f, 3.0f, 3.4f, 0.15f, lightColor);
+            // Lamp bottom
+            DrawBox(x - 0.2f, 2.9f, 0.8f, 0.4f, 0.1f, 0.4f, lampColor, lampColor, lampColor);
+        }
+    }
+
+    void DrawOutdoorScene(float walkProgress)
+    {
+        DrawEarth();
+        
+        // Paved area
+        DrawSlab(-15.0f, 1.00f, -10.0f, 30.0f, -0.99f, { 0.55f, 0.55f, 0.50f });
+
+        // Trees in the background
+        DrawTree(-10.0f, -5.0f, 1.5f, 1.2f);
+        DrawTree(10.0f, -6.0f, 1.8f, 1.5f);
+        DrawTree(-8.0f, -8.0f, 1.6f, 1.3f);
+        DrawTree(9.0f, -4.0f, 1.4f, 1.1f);
+
+        DrawGatehouse();
+        DrawCentralPillar();
+        DrawTriangularCanopy();
+        DrawFencing();
+        DrawHangingLamps();
+    }
+
+    void SetupProjection(int width, int height)
+    {
+        if (height == 0)
+        {
+            height = 1;
+        }
+
+        glViewport(0, 0, width, height);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(45.0, static_cast<double>(width) / static_cast<double>(height), 1.0, 1000.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+    }
+
+    void Render() {
+        if (g_storyStartTick == 0) g_storyStartTick = GetTickCount64();
+        float elapsed = (float)(GetTickCount64() - g_storyStartTick) / 1000.0f;
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glLoadIdentity();
+
+        // --- CAMERA LOGIC ---
+        // Orbit around the structure slowly to showcase it
+        float orbitAngle = elapsed * 10.0f; // 10 degrees per second
+        float cameraDistance = 22.0f;
+        float cameraHeight = 1.0f + std::sin(elapsed * 0.5f) * 1.5f; // Bob up and down slightly
+
+        glTranslatef(0.0f, -cameraHeight, -cameraDistance);
+        glRotatef(5.0f, 1.0f, 0.0f, 0.0f); // Look up slightly
+        glRotatef(orbitAngle, 0.0f, 1.0f, 0.0f);
+
+        DrawOutdoorScene(0.0f);
+
+        SwapBuffers(g_deviceContext);
+    }

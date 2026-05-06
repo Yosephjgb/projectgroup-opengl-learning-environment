@@ -1,0 +1,27 @@
+# Visual Studio temp files
+.vs/
+Debug/
+Release/
+x64/
+ipch/
+*.aps
+*.intermediate.manifest
+*.iobj
+*.ipdb
+*.log
+*.obj
+*.pch
+*.pdb
+*.sbr
+*.tlog
+*.exe
+*.recipe
+*.ilk
+*.user
+*.suo
+*.ncb
+*.opensdf
+*.sdf
+*.cache
+*.db
+*.opendb
