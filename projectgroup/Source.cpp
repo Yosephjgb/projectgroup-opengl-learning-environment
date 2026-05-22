@@ -1,24 +1,3 @@
-/**
- * @file Source.cpp
- * @brief Wolkite University Campus Simulation - OpenGL/GLUT Project
- *
- * This project provides a high-fidelity 3D reconstruction of the Wolkite
- * University day/night cycles, student animations, and a detailed classroom
- * interior.
- *
- * @author [Student Name/Group]
- * @version 2.0
- * @date May 2026
- *
- * FEATURES:
- * - Dual Building Campus Layout
- * - Realistic European Fan-Pattern Cobblestone Paths
- * - Dynamic Day/Night Toggle System ('N' key)
- * - Cinematic Classroom Entrance Animation ('G' key)
- * - Procedural Vegetation (Trees, Hedges, Long Grass)
- * - Detailed Road Infrastructure (Zebra Curbs, Weathering, Markings)
- */
-
 #include <windows.h>
 #include <GL/glu.h>
 #include <GL/glut.h>
@@ -159,8 +138,188 @@ float actTeacherX = 0.0f, actTeacherZ = 12.0f;
 bool isStudentSeated = false;
 bool isTeacherTeaching = false;
 
+// Waking Intro Cinematic & Bird variables
+float introTextAlpha = 0.0f;
+float focusBlurAmount = 0.0f;
+float birdProgress = 0.0f;
+
+// Welcome / Instruction Page
+bool showWelcomePage = true;
+
 // First-person classroom navigation
 float posX = 0.0f, posZ = 0.0f;
+
+// ---------------------------------------------------------------------------
+// HELPER: Render a string at a given 2D raster position (assumes ortho mode)
+// ---------------------------------------------------------------------------
+void renderBitmapString(float x, float y, void *font, const char *str) {
+  glRasterPos2f(x, y);
+  for (const char *c = str; *c != '\0'; c++) {
+    glutBitmapCharacter(font, *c);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// STARTUP WELCOME & INSTRUCTION PAGE OVERLAY
+// Draws a premium translucent overlay with project info and key bindings.
+// ---------------------------------------------------------------------------
+void drawWelcomePage() {
+  if (!showWelcomePage) return;
+
+  glDisable(GL_LIGHTING);
+  glDisable(GL_DEPTH_TEST);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  // Switch to 2D orthographic projection (800x600 logical pixels)
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  gluOrtho2D(0, 800, 0, 600);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  // --- 1. Full-screen dark translucent backdrop ---
+  glColor4f(0.0f, 0.0f, 0.05f, 0.75f);
+  glBegin(GL_QUADS);
+  glVertex2f(0, 0); glVertex2f(800, 0);
+  glVertex2f(800, 600); glVertex2f(0, 600);
+  glEnd();
+
+  // --- 2. Central card panel (slightly lighter) ---
+  float cardL = 120.0f, cardR = 680.0f;
+  float cardB = 60.0f, cardT = 550.0f;
+  glColor4f(0.08f, 0.10f, 0.15f, 0.85f);
+  glBegin(GL_QUADS);
+  glVertex2f(cardL, cardB); glVertex2f(cardR, cardB);
+  glVertex2f(cardR, cardT); glVertex2f(cardL, cardT);
+  glEnd();
+
+  // Thin gold border around the card
+  glColor4f(0.85f, 0.70f, 0.30f, 0.9f);
+  glLineWidth(2.0f);
+  glBegin(GL_LINE_LOOP);
+  glVertex2f(cardL, cardB); glVertex2f(cardR, cardB);
+  glVertex2f(cardR, cardT); glVertex2f(cardL, cardT);
+  glEnd();
+
+  // --- 3. Title ---
+  glColor3f(0.95f, 0.85f, 0.35f); // Gold
+  renderBitmapString(195, 510, GLUT_BITMAP_TIMES_ROMAN_24, "WOLKITE UNIVERSITY");
+  glColor3f(0.85f, 0.85f, 0.90f); // Silver-white
+  renderBitmapString(175, 480, GLUT_BITMAP_HELVETICA_18, "3D Campus Simulation  -  OpenGL / GLUT");
+
+  // --- 4. Thin separator line ---
+  glColor4f(0.5f, 0.5f, 0.6f, 0.6f);
+  glBegin(GL_LINES);
+  glVertex2f(160, 465); glVertex2f(640, 465);
+  glEnd();
+
+  // --- 5. Project description ---
+  glColor3f(0.75f, 0.80f, 0.85f);
+  renderBitmapString(160, 438, GLUT_BITMAP_HELVETICA_12,
+    "This project presents a high-fidelity 3D reconstruction of the Wolkite");
+  renderBitmapString(160, 420, GLUT_BITMAP_HELVETICA_12,
+    "University campus, featuring realistic day/night cycles, cinematic");
+  renderBitmapString(160, 402, GLUT_BITMAP_HELVETICA_12,
+    "animations, a detailed classroom interior, and procedural vegetation.");
+
+  // --- 6. Separator ---
+  glColor4f(0.5f, 0.5f, 0.6f, 0.6f);
+  glBegin(GL_LINES);
+  glVertex2f(160, 385); glVertex2f(640, 385);
+  glEnd();
+
+  // --- 7. Section header ---
+  glColor3f(0.95f, 0.85f, 0.35f);
+  renderBitmapString(310, 362, GLUT_BITMAP_HELVETICA_18, "CONTROLS");
+
+  // --- 8. Key bindings table ---
+  float keyX = 200.0f;  // Key label column
+  float descX = 310.0f; // Description column
+  float rowY = 332.0f;
+  float rowH = 28.0f;
+
+  // Row: M
+  glColor3f(0.40f, 0.90f, 0.40f); // Green key highlight
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[  M  ]");
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Start Cinematic Morning Scene (sunrise, walk-in, lecture)");
+  rowY -= rowH;
+
+  // Row: U
+  glColor3f(0.40f, 0.70f, 1.0f); // Blue key highlight
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[  U  ]");
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Campus Overview (return to exterior wide view)");
+  rowY -= rowH;
+
+  // Row: G
+  glColor3f(1.0f, 0.65f, 0.25f); // Orange key highlight
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[  G  ]");
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Go Inside Classroom (teleport to student perspective)");
+  rowY -= rowH;
+
+  // Row: N
+  glColor3f(0.70f, 0.50f, 1.0f); // Purple key highlight
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[  N  ]");
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Toggle Day / Night Mode");
+  rowY -= rowH;
+
+  // Row: B
+  glColor3f(1.0f, 0.45f, 0.45f); // Red key highlight
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[  B  ]");
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Back to Normal Scene (instant pop out)");
+  rowY -= rowH;
+
+  // Row: W / S
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[ W/S ]");
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Raise / Lower Camera Height");
+  rowY -= rowH;
+
+  // Row: Arrow Keys
+  glColor3f(0.85f, 0.85f, 0.90f);
+  renderBitmapString(keyX, rowY, GLUT_BITMAP_9_BY_15, "[Arrows]");
+  renderBitmapString(descX, rowY, GLUT_BITMAP_HELVETICA_12,
+    "Rotate Camera / Zoom In-Out / Walk (inside class)");
+  rowY -= rowH;
+
+  // --- 9. Bottom separator ---
+  glColor4f(0.5f, 0.5f, 0.6f, 0.6f);
+  glBegin(GL_LINES);
+  glVertex2f(160, rowY + 10); glVertex2f(640, rowY + 10);
+  glEnd();
+
+  // --- 10. Call to action ---
+  glColor3f(0.60f, 0.65f, 0.70f);
+  renderBitmapString(225, rowY - 15, GLUT_BITMAP_HELVETICA_12,
+    "Press any key to start exploring the campus ...");
+
+  // --- 11. Footer credits ---
+  glColor3f(0.40f, 0.42f, 0.48f);
+  renderBitmapString(270, 80, GLUT_BITMAP_HELVETICA_12,
+    "Computer Graphics Group Project - 2026");
+
+  // Restore 3D matrices
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_LIGHTING);
+}
 
 //           helpers
 void solidBox(float x1, float y1, float z1, float x2, float y2, float z2,
@@ -971,14 +1130,15 @@ void drawStudent(float x, float y, float z, float angle, float walkPhase = 0.0f,
   glRotatef(teacherAngle, 0, 1, 0);
 
   // Teachers are slightly taller (15% more)
-  float scale = isTeaching ? 0.52f : 0.45f;
+  bool isTeacher = (isTeaching || variant == 99);
+  float scale = isTeacher ? 0.52f : 0.45f;
   glScalef(scale, scale, scale);
 
   // 1. COLORS
   float shirtColors[6][3] = {{0.2f, 0.3f, 0.8f}, {0.8f, 0.2f, 0.2f},
                              {0.2f, 0.7f, 0.3f}, {0.9f, 0.8f, 0.2f},
                              {0.6f, 0.2f, 0.7f}, {0.2f, 0.8f, 0.8f}};
-  float teacherSuit[3] = {0.15f, 0.15f, 0.2f}; // Dark formal suit
+  float teacherSuit[3] = {0.05f, 0.05f, 0.05f}; // Pure black formal suit
 
   float hairColors[4][3] = {{0.05f, 0.05f, 0.05f},
                             {0.35f, 0.2f, 0.1f},
@@ -988,15 +1148,15 @@ void drawStudent(float x, float y, float z, float angle, float walkPhase = 0.0f,
   int hCol = variant % 4;
 
   // 2. TORSO
-  if (isTeaching)
+  if (isTeacher)
     glColor3fv(teacherSuit);
   else
     glColor3fv(shirtColors[sCol]);
 
   solidBox(-0.22f, 0.45f, -0.12f, 0.22f, 1.05f, 0.12f,
-           isTeaching ? 0.15f : shirtColors[sCol][0],
-           isTeaching ? 0.15f : shirtColors[sCol][1],
-           isTeaching ? 0.2f : shirtColors[sCol][2], 0.1f, 0.1f, 0.12f, 0.2f,
+           isTeacher ? teacherSuit[0] : shirtColors[sCol][0],
+           isTeacher ? teacherSuit[1] : shirtColors[sCol][1],
+           isTeacher ? teacherSuit[2] : shirtColors[sCol][2], 0.1f, 0.1f, 0.12f, 0.2f,
            0.2f, 0.25f);
 
   // 2.5 PANTS / PELVIS
@@ -1013,7 +1173,10 @@ void drawStudent(float x, float y, float z, float angle, float walkPhase = 0.0f,
   glPushMatrix(); // Hair
   glTranslatef(0.0f, 0.08f, 0.0f);
   glScalef(1.05f, 0.7f, 1.05f);
-  glColor3fv(hairColors[hCol]);
+  if (isTeacher)
+      glColor3f(0.05f, 0.05f, 0.05f); // Pure black hair for teacher
+  else
+      glColor3fv(hairColors[hCol]);
   glutSolidSphere(0.22f, 16, 12);
   glPopMatrix();
 
@@ -1112,6 +1275,9 @@ void drawStudent(float x, float y, float z, float angle, float walkPhase = 0.0f,
 }
 
 void drawStudents() {
+  // If it's night time, the campus is deserted!
+  if (isNight) return;
+
   // Draw students walking back and forth near the first floor doors (balcony)
   for (int i = 0; i < 3; i++) {
     float phaseOffset = i * 120.0f; // phase offset
@@ -1342,6 +1508,20 @@ void drawClassroomInterior() {
   // Projection Screen (Pulled down, overlapping whiteboard)
   solidBox(-1.5f, 0.5f, rZ1 + 0.06f, 0.2f, 1.3f, rZ1 + 0.07f, 0.9f, 0.9f, 0.9f,
            0.8f, 0.8f, 0.8f, 0.9f, 0.9f, 0.9f);
+
+  // Draw slide header text "Computer Graphics" in dark grey on the projection screen!
+  glDisable(GL_LIGHTING);
+  glPushMatrix();
+  glTranslatef(-1.08f, 0.85f, rZ1 + 0.075f); // Centered 3D coordinate on slide
+  glScalef(0.0007f, 0.0007f, 0.0007f);      // Scale down 100-unit stroke size to fit screen
+  glLineWidth(2.0f);                        // Bold, crisp lines
+  glColor3f(0.1f, 0.15f, 0.2f);             // Dark charcoal text
+  for (char c : std::string("Computer Graphics")) {
+    glutStrokeCharacter(GLUT_STROKE_ROMAN, c);
+  }
+  glLineWidth(1.0f); // Reset line width
+  glPopMatrix();
+  glEnable(GL_LIGHTING);
   // Screen Roller Housing (Black)
   solidBox(-1.6f, 1.3f, rZ1 + 0.05f, 0.3f, 1.4f, rZ1 + 0.09f, 0.1f, 0.1f, 0.1f,
            0.05f, 0.05f, 0.05f, 0.15f, 0.15f, 0.15f);
@@ -1411,7 +1591,6 @@ void drawClassroomInterior() {
            0.05f, 0.05f, 0.15f, 0.15f, 0.15f);
   glPopMatrix(); // End top desk
   glPopMatrix(); // End podium
-  // TV Screen (glow)
   glDisable(GL_LIGHTING);
   glColor3f(0.2f, 0.4f, 0.8f);
   glBegin(GL_QUADS);
@@ -1426,8 +1605,8 @@ void drawClassroomInterior() {
   // conflicts with the new hanging projector)
 
   // Teacher (Standing and Teaching)
-  if (currentMode != MODE_MORNING_CINEMATIC) {
-    drawStudent(-0.5f, 0.0f, rZ1 + 0.8f, 0.0f, studentWalkAngle, false, 0, true);
+  if (currentMode != MODE_MORNING_CINEMATIC && !isNight) {
+    drawStudent(-0.5f, 0.0f, rZ1 + 0.8f, 0.0f, studentWalkAngle, false, 99, true);
   }
 
   // Desks, Chairs and Students
@@ -1461,7 +1640,8 @@ void drawClassroomInterior() {
                0.3f, 0.3f, 0.3f, 0.25f, 0.25f, 0.25f, 0.35f, 0.35f, 0.35f);
 
       // Seated Student (Keep classroom completely empty during morning cinematic until it finishes)
-      bool hideAllSeated = (currentMode == MODE_MORNING_CINEMATIC);
+      // Also hide students at night!
+      bool hideAllSeated = (currentMode == MODE_MORNING_CINEMATIC) || isNight;
       if (!hideAllSeated) {
         drawStudent(dx, -0.1f, dz + 0.2f, 180.0f, 0.0f, true, studentIdx++);
       } else {
@@ -1592,6 +1772,122 @@ void drawCloud(float x, float y, float z, float scale) {
   glEnable(GL_LIGHTING);
 }
 
+void drawIntroText() {
+  if (currentMode != MODE_MORNING_CINEMATIC || introTextAlpha <= 0.001f)
+    return;
+
+  glDisable(GL_LIGHTING);
+  glDisable(GL_DEPTH_TEST); // Disable depth testing to render overlay directly on top!
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  // Switch to 2D Orthographic Projection for pixel-perfect text layout
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  // We'll define coordinate system 0 to 800 width, 0 to 600 height
+  gluOrtho2D(0, 800, 0, 600);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  // Draw semi-transparent black background behind the intro text to mask out a bit of the world
+  glColor4f(0.0f, 0.0f, 0.0f, introTextAlpha * 0.4f);
+  glBegin(GL_QUADS);
+  glVertex2f(0.0f, 0.0f);
+  glVertex2f(800.0f, 0.0f);
+  glVertex2f(800.0f, 600.0f);
+  glVertex2f(0.0f, 600.0f);
+  glEnd();
+
+  // Render "Good Morning" text
+  glColor4f(1.0f, 1.0f, 0.95f, introTextAlpha);
+
+  // Measure text length roughly to center it (each char of 9x15 is 9 pixels wide)
+  std::string label = "Good Morning";
+  int textWidth = label.length() * 9;
+  
+  // Position raster cursor centered: X = 400 - (width/2), Y = 300 - (height/2)
+  glRasterPos2i(400 - (textWidth / 2), 300 - 7);
+  for (char c : label) {
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
+  }
+
+  // Restore 3D matrices
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
+  glEnable(GL_DEPTH_TEST); // Re-enable depth testing for subsequent 3D render passes!
+  glEnable(GL_LIGHTING);
+}
+
+void drawBirds() {
+  if (currentMode != MODE_MORNING_CINEMATIC || birdProgress <= 0.001f)
+    return;
+
+  glDisable(GL_LIGHTING);
+  glPushMatrix();
+
+  // Birds fly across the sky in a V-formation, from high left to low right
+  // We will position the center of the flock based on birdProgress (0.0 to 1.0)
+  float flockX = -25.0f + (birdProgress * 50.0f);
+  float flockY = 16.0f - (birdProgress * 4.0f);
+  float flockZ = -35.0f - (birdProgress * 5.0f);
+
+  // Flock offsets for V-formation: 3 birds
+  float birdOffsetsX[3] = {0.0f, -1.8f, -1.8f};
+  float birdOffsetsY[3] = {0.0f, 0.8f, -0.8f};
+  float birdOffsetsZ[3] = {0.0f, 1.2f, -1.2f};
+
+  // Silhouette color against sunrise
+  glColor3f(0.08f, 0.08f, 0.1f);
+
+  for (int i = 0; i < 3; i++) {
+    glPushMatrix();
+    glTranslatef(flockX + birdOffsetsX[i], flockY + birdOffsetsY[i], flockZ + birdOffsetsZ[i]);
+    glRotatef(20.0f, 0.0f, 1.0f, 0.0f); // slight forward rotation
+
+    // Body
+    glBegin(GL_TRIANGLES);
+    // Head/beak
+    glVertex3f(0.0f, 0.0f, 0.15f);
+    glVertex3f(-0.06f, 0.0f, -0.15f);
+    glVertex3f(0.06f, 0.0f, -0.15f);
+    glEnd();
+
+    // Wings flapping
+    float flapPhase = studentWalkAngle * 2.5f + (i * 1.5f);
+    float flapAngle = sinf(flapPhase) * 45.0f; // flap wings between -45 and 45 degrees
+
+    // Left Wing
+    glPushMatrix();
+    glRotatef(flapAngle, 0.0f, 0.0f, 1.0f);
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    glVertex3f(-0.5f, 0.1f, -0.05f);
+    glVertex3f(0.0f, 0.0f, -0.1f);
+    glEnd();
+    glPopMatrix();
+
+    // Right Wing
+    glPushMatrix();
+    glRotatef(-flapAngle, 0.0f, 0.0f, 1.0f);
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    glVertex3f(0.5f, 0.1f, -0.05f);
+    glVertex3f(0.0f, 0.0f, -0.1f);
+    glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+  }
+
+  glPopMatrix();
+  glEnable(GL_LIGHTING);
+}
+
 void drawSky() {
   glDisable(GL_LIGHTING);
 
@@ -1610,10 +1906,13 @@ void drawSky() {
      float cinematicSunAngle = -120.0f + (150.0f * sunPhase); // Rises from deep below horizon
      drawSun(cinematicSunAngle);
   } else if (isNight) {
-    drawMoon(sunMoonAngle);
+     drawMoon(sunMoonAngle);
   } else {
-    drawSun(sunMoonAngle);
+     drawSun(sunMoonAngle);
   }
+
+  // Draw Flying Birds
+  drawBirds();
 
   // Clouds — 5 clouds drifting across the sky
   float baseZ = -50.0f;
@@ -2473,7 +2772,7 @@ void drawLongWindow(float x, float y, float z) {
   }
 }
 
-void drawBuilding(bool withWindows = false) {
+void drawBuilding(bool withWindows = false, bool isMainBuilding = true) {
   float BX1 = -4.5f, BX2 = 4.5f; // building X extents
   float BZ1 = -0.7f, BZ2 = 0.7f; // building depth
   float BZ_Back = -3.5f;
@@ -2488,40 +2787,78 @@ void drawBuilding(bool withWindows = false) {
   solidBox(BX1, 0.0f, BZ_Back - 0.2f, BX2, 0.15f, -0.7f, 0.6f, 0.62f, 0.65f,
            0.6f, 0.62f, 0.65f, 0.92f, 0.60f, 0.38f);
 
-  // ── CONCRETE ACCESS RAMP (right side of building front) ──
-  // Connects plinth (y=0.15 at z=1.8) down to ground (y=0 at z=3.5)
-  // X range: 4.6 to 5.4 (narrower)
+  // ── CONCRETE ACCESS RAMP (shape depends on which building) ──
   glDisable(GL_LIGHTING);
-  // Top sloped surface
-  glColor3f(0.55f, 0.52f, 0.48f);
-  glBegin(GL_QUADS);
-  glVertex3f(4.6f, 0.15f, 1.8f); // back-left  (plinth level)
-  glVertex3f(5.4f, 0.15f, 1.8f); // back-right (plinth level)
-  glVertex3f(5.4f, 0.00f, 3.5f); // front-right (ground)
-  glVertex3f(4.6f, 0.00f, 3.5f); // front-left  (ground)
-  glEnd();
-  // Front edge
-  glColor3f(0.48f, 0.45f, 0.42f);
-  glBegin(GL_QUADS);
-  glVertex3f(4.6f, 0.00f, 3.5f);
-  glVertex3f(5.4f, 0.00f, 3.5f);
-  glVertex3f(5.4f, -0.02f, 3.5f);
-  glVertex3f(4.6f, -0.02f, 3.5f);
-  glEnd();
-  // Left side triangle
-  glColor3f(0.50f, 0.47f, 0.44f);
-  glBegin(GL_TRIANGLES);
-  glVertex3f(4.6f, 0.15f, 1.8f);
-  glVertex3f(4.6f, 0.00f, 1.8f);
-  glVertex3f(4.6f, 0.00f, 3.5f);
-  glEnd();
-  // Right side triangle
-  glColor3f(0.50f, 0.47f, 0.44f);
-  glBegin(GL_TRIANGLES);
-  glVertex3f(5.4f, 0.15f, 1.8f);
-  glVertex3f(5.4f, 0.00f, 3.5f);
-  glVertex3f(5.4f, 0.00f, 1.8f);
-  glEnd();
+  if (isMainBuilding) {
+    // FRONT RAMP: slopes straight out from the building's front face (along Z)
+    // Plinth edge z=1.8 (y=0.15) → ground z=3.5 (y=0), X range: 4.6–5.4
+
+    // Top sloped surface
+    glColor3f(0.55f, 0.52f, 0.48f);
+    glBegin(GL_QUADS);
+    glVertex3f(4.6f, 0.15f, 1.8f); // back-left  (plinth level)
+    glVertex3f(5.4f, 0.15f, 1.8f); // back-right (plinth level)
+    glVertex3f(5.4f, 0.00f, 3.5f); // front-right (ground)
+    glVertex3f(4.6f, 0.00f, 3.5f); // front-left  (ground)
+    glEnd();
+    // Front lip
+    glColor3f(0.48f, 0.45f, 0.42f);
+    glBegin(GL_QUADS);
+    glVertex3f(4.6f, 0.00f, 3.5f);
+    glVertex3f(5.4f, 0.00f, 3.5f);
+    glVertex3f(5.4f, -0.02f, 3.5f);
+    glVertex3f(4.6f, -0.02f, 3.5f);
+    glEnd();
+    // Left side triangle
+    glColor3f(0.50f, 0.47f, 0.44f);
+    glBegin(GL_TRIANGLES);
+    glVertex3f(4.6f, 0.15f, 1.8f);
+    glVertex3f(4.6f, 0.00f, 1.8f);
+    glVertex3f(4.6f, 0.00f, 3.5f);
+    glEnd();
+    // Right side triangle
+    glColor3f(0.50f, 0.47f, 0.44f);
+    glBegin(GL_TRIANGLES);
+    glVertex3f(5.4f, 0.15f, 1.8f);
+    glVertex3f(5.4f, 0.00f, 3.5f);
+    glVertex3f(5.4f, 0.00f, 1.8f);
+    glEnd();
+  } else {
+    // SIDE RAMP: slopes sideways along X on the RIGHT wall of the left building,
+    // facing toward the path between the two buildings.
+    // Plinth edge x=5.70 (y=0.15) → ground x=7.20 (y=0), Z range: 0.8–1.8
+
+    // Top sloped surface
+    glColor3f(0.55f, 0.52f, 0.48f);
+    glBegin(GL_QUADS);
+    glVertex3f(5.70f, 0.15f, 0.8f);  // back-left  (plinth level)
+    glVertex3f(5.70f, 0.15f, 1.8f);  // front-left (plinth level)
+    glVertex3f(7.20f, 0.00f, 1.8f);  // front-right (ground)
+    glVertex3f(7.20f, 0.00f, 0.8f);  // back-right  (ground)
+    glEnd();
+    // Front face (triangle at z=1.8)
+    glColor3f(0.48f, 0.45f, 0.42f);
+    glBegin(GL_TRIANGLES);
+    glVertex3f(5.70f, 0.15f, 1.8f);
+    glVertex3f(5.70f, 0.00f, 1.8f);
+    glVertex3f(7.20f, 0.00f, 1.8f);
+    glEnd();
+    // Back face (triangle at z=0.8)
+    glColor3f(0.48f, 0.45f, 0.42f);
+    glBegin(GL_TRIANGLES);
+    glVertex3f(5.70f, 0.15f, 0.8f);
+    glVertex3f(7.20f, 0.00f, 0.8f);
+    glVertex3f(5.70f, 0.00f, 0.8f);
+    glEnd();
+    // Left vertical wall (at x=5.70, flush with plinth edge)
+    glColor3f(0.50f, 0.47f, 0.44f);
+    glBegin(GL_QUADS);
+    glVertex3f(5.70f, 0.00f, 0.8f);
+    glVertex3f(5.70f, 0.15f, 0.8f);
+    glVertex3f(5.70f, 0.15f, 1.8f);
+    glVertex3f(5.70f, 0.00f, 1.8f);
+    glEnd();
+  }
   glEnable(GL_LIGHTING);
 
   // Square tile pattern
@@ -2970,62 +3307,77 @@ void display() {
     glRotatef(autoAngle, 0.0f, 1.0f, 0.0f);
   } else if (currentMode == MODE_CLASSROOM || (currentMode == MODE_MORNING_CINEMATIC && morningProgress >= 0.50f)) {
     if (currentMode == MODE_MORNING_CINEMATIC) {
-        float p_students = 0.0f;
-        if (morningProgress >= 0.70f && morningProgress < 0.90f) p_students = (morningProgress - 0.70f) / 0.20f;
-        else if (morningProgress >= 0.90f) p_students = 1.0f;
+        // Synced timeline for lead student (Student 1) walking from 0.50f to 0.65f
+        float p1 = (morningProgress - 0.50f) / 0.15f;
+        if (p1 < 0.0f) p1 = 0.0f;
+        if (p1 > 1.0f) p1 = 1.0f;
 
-        auto getActualLeadPos = [](float p, float targetX, float& x, float& z) {
+        auto getActualLeadPos = [](float p, float targetX, float targetZ, float& x, float& z, float& angle) {
             if (p < 0.0f) p = 0.0f;
             if (p > 1.0f) p = 1.0f;
-            if (p < 0.4f) {
-                float t = p / 0.4f;
-                x = -2.5f + (t * 2.0f);
-                z = -7.5f;
-            } else {
-                float t = (p - 0.4f) / 0.6f;
-                x = -0.5f + (t * (targetX - (-0.5f)));
-                z = -7.5f + (t * 2.2f);
+            
+            float aisleZ = targetZ + 0.3f; // Pathway immediately behind the target chair
+
+            // Phase 1 (0.0 to 0.6): Walk down left aisle (X = -2.6) from Z = -7.5 to aisleZ
+            if (p < 0.6f) {
+                float t = p / 0.6f;
+                x = -2.6f;
+                z = -7.5f + t * (aisleZ - (-7.5f));
+                angle = 0.0f;
+            }
+            // Phase 2 (0.6 to 0.9): Walk horizontally along the row aisle from X = -2.6 to targetX at aisleZ
+            else if (p < 0.9f) {
+                float t = (p - 0.6f) / 0.3f;
+                x = -2.6f + t * (targetX - (-2.6f));
+                z = aisleZ;
+                angle = 90.0f;
+            }
+            // Phase 3 (0.9 to 1.0): Step forward into the chair (from aisleZ to targetZ)
+            else {
+                float t = (p - 0.9f) / 0.1f;
+                x = targetX;
+                z = aisleZ - t * (aisleZ - targetZ);
+                angle = 90.0f + (t * 90.0f); // turn to 180 (facing whiteboard)
             }
         };
-        float lx1, lz1; getActualLeadPos(p_students, 1.0f, lx1, lz1);
+        float lx1, lz1, lang1; getActualLeadPos(p1, 1.0f, 0.2f, lx1, lz1, lang1);
 
-        if (morningProgress < 0.70f) {
-            // Phase 3: Teacher walks in. Camera starts behind the students at the doorway!
-            glRotatef(90.0f, 0.0f, 1.0f, 0.0f); // Face right towards whiteboard
-            glTranslatef(-(-2.7f), -1.2f, -(-7.3f)); // Placed inside doorway behind students
-        } else if (morningProgress < 0.90f) {
-            // Phase 4: Follow the lead student from behind (inside classroom, avoiding wall clipping)
+        if (morningProgress < 0.65f) {
+            // Step 1: Follow the lead student (Student 1) closely from behind until they sit
             float camX, camZ, camRot;
-            if (p_students < 0.4f) {
-                float t_turn = p_students / 0.4f;
-                camX = -2.7f * (1.0f - t_turn) + (-0.5f) * t_turn;
-                camZ = -7.3f;
-                camRot = 90.0f * (1.0f - t_turn) + 180.0f * t_turn;
-            } else {
-                camX = lx1;
+            if (p1 < 0.6f) {
+                camX = -2.6f;
                 camZ = lz1 - 1.0f;
                 if (camZ < -7.3f) camZ = -7.3f;
                 camRot = 180.0f;
+            } else if (p1 < 0.9f) {
+                float t = (p1 - 0.6f) / 0.3f;
+                camX = lx1 - 1.0f;
+                if (camX < -2.6f) camX = -2.6f;
+                camZ = 0.5f;
+                camRot = 180.0f + (t * 90.0f);
+            } else {
+                float t = (p1 - 0.9f) / 0.1f;
+                camX = 1.0f;
+                camZ = 0.5f - (t * 1.0f);
+                if (camZ < -0.5f) camZ = -0.5f;
+                camRot = 270.0f; // STAY looking from the side while the student turns and sits!
             }
 
             glRotatef(camRot, 0.0f, 1.0f, 0.0f);
             glTranslatef(-camX, -1.2f, -camZ);
-        } else {
-            // Phase 5: Camera smoothly turns 180 degrees and pans back to frame the room
-            float p_turn = (morningProgress - 0.90f) / 0.10f;
-            if (p_turn > 1.0f) p_turn = 1.0f;
-            float easeP = p_turn * p_turn * (3.0f - 2.0f * p_turn); // smooth step
-            
-            float startCamZ = lz1 - 1.0f;
-            if (startCamZ < -7.3f) startCamZ = -7.3f;
-
-            float camX = lx1 * (1.0f - easeP) + 0.0f * easeP;
-            float camZ = startCamZ * (1.0f - easeP) + (-3.2f) * easeP;
-            float camY = 1.2f * (1.0f - easeP) + 1.3f * easeP;
-            float camRot = 180.0f * (1.0f - easeP) + 0.0f * easeP;
+        } else if (morningProgress < 0.70f) {
+            // Step 2: Camera reaches seat and turns smoothly from 270° to 360° (0°) to face the whiteboard screen/blackboard
+            float t_turn = (morningProgress - 0.65f) / 0.05f;
+            float easeP = t_turn * t_turn * (3.0f - 2.0f * t_turn); // smooth step
+            float camRot = 270.0f * (1.0f - easeP) + 360.0f * easeP;
 
             glRotatef(camRot, 0.0f, 1.0f, 0.0f);
-            glTranslatef(-camX, -camY, -camZ);
+            glTranslatef(-1.0f, -1.2f, -(-0.5f));
+        } else {
+            // Step 3: Camera stays static, beautifully framing the screen view while Student 3, Student 4, and the Teacher walk in one-by-one!
+            glRotatef(0.0f, 0.0f, 1.0f, 0.0f);
+            glTranslatef(-1.0f, -1.2f, -(-0.5f));
         }
     } else {
         glRotatef(autoAngle, 0.0f, 1.0f, 0.0f);
@@ -3076,36 +3428,94 @@ void display() {
     glTranslatef(0.0f, 0.15f, 0.0f);
     drawClassroomInterior();
     if (currentMode == MODE_MORNING_CINEMATIC) {
-         float p_students = 0.0f;
-         if (morningProgress >= 0.70f && morningProgress < 0.90f) p_students = (morningProgress - 0.70f) / 0.20f;
-         else if (morningProgress >= 0.90f) p_students = 1.0f;
+         // Synced individual timeline progress variables:
+         float p1 = (morningProgress - 0.50f) / 0.15f;
+         if (p1 < 0.0f) p1 = 0.0f;
+         if (p1 > 1.0f) p1 = 1.0f;
 
          float p_teacher = 0.0f;
-         if (morningProgress >= 0.50f && morningProgress < 0.70f) p_teacher = (morningProgress - 0.50f) / 0.20f;
-         else if (morningProgress >= 0.70f) p_teacher = 1.0f;
+         if (morningProgress >= 0.90f) {
+             p_teacher = (morningProgress - 0.90f) / 0.07f;
+             if (p_teacher > 1.0f) p_teacher = 1.0f;
+         }
 
-         auto getInteriorPos = [](float p, float targetX, float& x, float& z, float& angle, bool& seated) {
-             if (p < 0.0f) p = 0.0f;
-             if (p > 1.0f) p = 1.0f;
-             x = -2.5f + (p * (targetX - (-2.5f))); // Door is at X=-2.5
-             z = -7.5f + (p * 2.2f); // Door is at Z=-7.5, chair at Z=-5.3
-             seated = (p > 0.95f);
-             angle = seated ? 180.0f : 0.0f; // Walk +Z (0.0f), sit facing -Z (180.0f)
+         auto getInteriorPos = [](float p, float targetX, float targetZ, float& x, float& z, float& angle) {
+              if (p < 0.0f) p = 0.0f;
+              if (p > 1.0f) p = 1.0f;
+              
+              float aisleZ = targetZ + 0.3f;
+              
+              if (p < 0.6f) {
+                  float t = p / 0.6f;
+                  x = -2.6f;
+                  z = -7.5f + t * (aisleZ - (-7.5f));
+                  angle = 0.0f;
+              }
+              else if (p < 0.9f) {
+                  float t = (p - 0.6f) / 0.3f;
+                  x = -2.6f + t * (targetX - (-2.6f));
+                  z = aisleZ;
+                  angle = 90.0f;
+              }
+              else {
+                  float t = (p - 0.9f) / 0.1f;
+                  x = targetX;
+                  z = aisleZ - t * (aisleZ - targetZ);
+                  angle = 90.0f + (t * 90.0f);
+              }
          };
          
-         float x1, z1, a1; bool seat1; getInteriorPos(p_students, 1.0f, x1, z1, a1, seat1);
-         float x3, z3, a3; bool seat3; getInteriorPos(p_students - 0.15f, 0.0f, x3, z3, a3, seat3);
-         float x4, z4, a4; bool seat4; getInteriorPos(p_students - 0.30f, -1.0f, x4, z4, a4, seat4);
+         float x1, z1, a1; 
+         getInteriorPos(p1, 1.0f, 0.2f, x1, z1, a1);
+         bool seat1 = (p1 >= 0.95f);
 
-         drawStudent(x1, 0.0f, z1, a1, morningProgress * 100.0f, seat1, 1, false);
-         drawStudent(x3, 0.0f, z3, a3, morningProgress * 110.0f, seat3, 3, false);
-         drawStudent(x4, 0.0f, z4, a4, morningProgress * 90.0f, seat4, 4, false);
+         if (p1 > 0.0f) drawStudent(x1, 0.0f, z1, a1, morningProgress * 100.0f, seat1, 1, false);
 
-         if (morningProgress >= 0.50f) {
+         // Generate the remaining 34 background seats dynamically
+         float seatsX[34];
+         float seatsZ[34];
+         int sIdx = 0;
+         for (int row = 0; row < 7; row++) {
+             float dz = -5.5f + row * 0.9f;
+             for (int col = 0; col < 5; col++) {
+                 float dx = -2.0f + col * 1.0f;
+                 float tz = dz + 0.2f;
+                 float tx = dx;
+                 // Skip main student's seat (X=1.0, Z=0.2)
+                 if (std::abs(tx - 1.0f) < 0.1f && std::abs(tz - 0.2f) < 0.1f) continue;
+                 if (sIdx < 34) {
+                     seatsX[sIdx] = tx;
+                     seatsZ[sIdx] = tz;
+                     sIdx++;
+                 }
+             }
+         }
+
+         // Draw the 34 background students filing in sequentially
+         for (int i = 0; i < 34; i++) {
+             // Spread their start times between 0.70f and 0.85f so they all enter one-by-one!
+             float start_p = 0.70f + (i / 33.0f) * 0.15f;
+             float walk_dur = 0.12f; // SLOWER, elegant walk to keep the sequence dynamic
+             float p_i = (morningProgress - start_p) / walk_dur;
+             
+             if (p_i > 0.0f) {
+                 float sx, sz, sa;
+                 getInteriorPos(p_i, seatsX[i], seatsZ[i], sx, sz, sa);
+                 bool s_seat = (p_i >= 0.95f);
+                 // Vary walk animation timing slightly so they look natural
+                 float anim = morningProgress * (100.0f + (i % 5) * 15.0f);
+                 // Assign a random-looking uniform (colors 1 through 6)
+                 int uniformType = (i % 6) + 1; 
+                 drawStudent(sx, 0.0f, sz, sa, anim, s_seat, uniformType, false);
+             }
+         }
+
+         if (morningProgress >= 0.90f) {
              float tx = -2.5f + (p_teacher * 2.0f);
              float tz = -7.5f + (p_teacher * 0.8f);
              float ta = (p_teacher < 0.90f) ? 45.0f : 0.0f;
-             drawStudent(tx, 0.0f, tz, ta, morningProgress * 200.0f, false, 2, isTeacherTeaching);
+             // Variant 99 forces the pure black suit for the teacher!
+             drawStudent(tx, 0.0f, tz, ta, morningProgress * 200.0f, false, 99, isTeacherTeaching);
          }
     }
     glPopMatrix();
@@ -3216,14 +3626,65 @@ void display() {
     // 1. Center Building (Main) - WITH WINDOWS
     drawBuilding(true);
 
-    // 2. Left Building (Duplicate) - NO WINDOWS
+    // 2. Left Building (Duplicate) - NO WINDOWS, SIDE RAMP
     glPushMatrix();
     glTranslatef(-15.0f, 0.0f, 0.0f);
-    drawBuilding(false);
+    drawBuilding(false, false); // isMainBuilding=false → sideways ramp
     glPopMatrix();
   }
 
   glPopMatrix();
+
+  // If focusBlurAmount > 0, draw a gorgeous cinematic waking-up vignette/blur lens overlay
+  // and full-screen fade mask over the viewport in 2D orthographic projection.
+  // This perfectly handles the black startup screen fading out!
+  if (currentMode == MODE_MORNING_CINEMATIC && focusBlurAmount > 0.001f) {
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST); // CRITICAL: Disable depth testing to avoid Z-clipping with 3D buildings!
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 800, 0, 600);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // 1. FULL PITCH BLACK STARTING OVERLAY (Fades out completely by morningProgress = 0.22)
+    // This makes the cinematic start 100% pitch black exactly like the CapCut video!
+    float blackScreenAlpha = 0.0f;
+    if (morningProgress < 0.22f) {
+      float t = morningProgress / 0.22f;
+      blackScreenAlpha = 1.0f - (t * t * (3.0f - 2.0f * t)); // Elegant S-curve smoothstep ease-out
+    }
+    if (blackScreenAlpha > 0.0f) {
+      glColor4f(0.0f, 0.0f, 0.0f, blackScreenAlpha);
+      glBegin(GL_QUADS);
+      glVertex2f(0.0f, 0.0f);
+      glVertex2f(800.0f, 0.0f);
+      glVertex2f(800.0f, 600.0f);
+      glVertex2f(0.0f, 600.0f);
+      glEnd();
+    }
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glEnable(GL_DEPTH_TEST); // Re-enable depth testing
+    glEnable(GL_LIGHTING);
+  }
+
+  // Draw Flat 2D "Good Morning" Intro Text over the top of the blurry/black scene
+  // This guarantees it renders clearly on top of the black mask and never gets hidden!
+  drawIntroText();
+
+  // Draw Startup Welcome & Instruction Page overlay (on top of everything)
+  drawWelcomePage();
+
   glutSwapBuffers();
 }
 
@@ -3320,6 +3781,12 @@ void reshape(int w, int h) {
 }
 
 void keyboard(unsigned char key, int x, int y) {
+  // Dismiss the Welcome Page on ANY key press
+  if (showWelcomePage) {
+    showWelcomePage = false;
+    // Let the key still trigger its action below (e.g. 'M' starts cinematic)
+  }
+
   if (key == 'w' || key == 'W')
     camHeight += 0.2f;
   if (key == 's' || key == 'S')
@@ -3331,14 +3798,15 @@ void keyboard(unsigned char key, int x, int y) {
     applySkySettings();
   }
 
-  // Start Cinematic Classroom Transition
+  // Go inside the classroom instantly
   if (key == 'g' || key == 'G') {
     if (currentMode == MODE_EXTERIOR) {
-      currentMode = MODE_TRANSITION;
-      transitionProgress = 0.0f;
-      targetDoorAngle = 0.0f;
-      enteringStudentZ = 1.35f;
-      enteringStudentX = 0.0f;
+      currentMode = MODE_CLASSROOM;
+      posX = -1.5f; // Positioned near the interior door
+      posZ = -0.5f;
+      camHeight = 0.8f; // Match the new student eye level
+      autoAngle = 0.0f;
+      zoom = 0.0f;
     }
   }
 
@@ -3353,7 +3821,22 @@ void keyboard(unsigned char key, int x, int y) {
       actStudentX = 0.45f; actStudentZ = 15.0f;
       actTeacherX = -5.0f; actTeacherZ = 15.0f; // Hidden initially
       targetDoorAngle = 0.0f;
+      introTextAlpha = 0.0f;
+      focusBlurAmount = 1.0f; // Start fully blurred for the waking up effect!
+      birdProgress = 0.0f;
     }
+  }
+
+  // Campus Overview — return to exterior wide view
+  if (key == 'u' || key == 'U') {
+    currentMode = MODE_EXTERIOR;
+    transitionProgress = 0.0f;
+    targetDoorAngle = 0.0f;
+    zoom = 15.0f;     // Default exterior zoom
+    camHeight = 1.2f; // Default exterior height
+    autoAngle = 0.0f; // Reset rotation
+    isNight = false;
+    applySkySettings();
   }
 
   // Return to Normal Scene (INSTANT POP OUT)
@@ -3504,15 +3987,44 @@ void idle() {
       enteringStudentX = 0.45f;
     }
   } else if (currentMode == MODE_MORNING_CINEMATIC) {
-    morningProgress += 0.0004f; // Slow 2500 frames sequence for slow and majestic walking speed
+    morningProgress += 0.0005f; // Slower, more elegant cinematic sequence (about 33 seconds total)
     if (morningProgress >= 1.0f) {
       morningProgress = 1.0f;
       currentMode = MODE_CLASSROOM;
       posX = -0.5f; posZ = 0.0f; camHeight = 1.2f; autoAngle = 0.0f;
       isTeacherTeaching = true;
       isNight = false; // FIX: Ensure we stay daytime!
+      introTextAlpha = 0.0f;
+      focusBlurAmount = 0.0f;
+      birdProgress = 0.0f;
     }
     applySkySettings(); // Dynamic sunrise
+
+    // --- Cinematic Intro Timeline (Waking up, blur clearing, bird flight) ---
+    // 1. Text alpha: Perfect smooth sine envelope peaking at morningProgress = 0.08, fully gone by 0.16
+    if (morningProgress < 0.16f) {
+      float t = morningProgress / 0.16f;
+      float s = sinf(t * 3.14159265f);
+      introTextAlpha = s * s; // Smooth bell curve S-shape
+    } else {
+      introTextAlpha = 0.0f;
+    }
+
+    // 2. Focus Blur (Eyelids): Smooth S-Curve (Smoothstep) opening completely by 0.30
+    if (morningProgress < 0.30f) {
+      float t = morningProgress / 0.30f;
+      focusBlurAmount = 1.0f - (t * t * (3.0f - 2.0f * t));
+    } else {
+      focusBlurAmount = 0.0f;
+    }
+
+    // 3. Birds flight: Starts flying at progress 0.12, proceeding continuously across sky
+    if (morningProgress >= 0.12f) {
+      float t = (morningProgress - 0.12f) / (1.0f - 0.12f);
+      birdProgress = t * 2.5f; // fly smoothly across the horizon
+    } else {
+      birdProgress = 0.0f;
+    }
 
     if (morningProgress < 0.25f) {
       // Phase 1: Sunrise - actors static
@@ -3575,48 +4087,23 @@ void idle() {
                actStudentAngle = -180.0f;
            }
        }
-       if (p > 0.85f) {
-           float dp = (p - 0.85f) / 0.15f;
-           targetDoorAngle = -90.0f * dp; // Smoothly open
+       // Classroom Phase (morningProgress >= 0.50f)
+       // Door remains open as students and teacher enter, and closes smoothly at 0.95f
+       if (morningProgress < 0.95f) {
+           targetDoorAngle = -90.0f;
+       } else if (morningProgress < 0.98f) {
+           float dp = (morningProgress - 0.95f) / 0.03f;
+           targetDoorAngle = -90.0f * (1.0f - dp); // Smoothly close door
        } else {
            targetDoorAngle = 0.0f;
        }
-    } else if (morningProgress < 0.70f) {
-      // Phase 3: Teacher walks in and goes to podium
-      float p = (morningProgress - 0.50f) / 0.20f;
-      actTeacherX = -2.5f + (p * 2.0f); // Walks from front door X=-2.5 to podium X=-0.5
-      actTeacherZ = -7.5f + (p * 0.8f); // Z=-7.5 to Z=-6.7
-      
-      if (p < 0.50f) {
-          targetDoorAngle = -90.0f; // Stay open while walking in
-      } else if (p < 0.65f) {
-          float dp = (p - 0.50f) / 0.15f;
-          targetDoorAngle = -90.0f * (1.0f - dp); // Smoothly close
-      } else {
-          targetDoorAngle = 0.0f;
-      }
-      
-      // Reset students to door entrance so they are ready for Phase 4
-      actStudentX = -2.5f;
-      actStudentZ = -7.5f;
-    } else if (morningProgress < 0.90f) {
-      // Phase 4: Students walk in and sit down
-      float p = (morningProgress - 0.70f) / 0.20f;
-      actStudentX = -2.5f + (p * 4.0f); 
-      actStudentZ = -7.5f + (p * 2.2f); // walks to Z=-5.3
-      if (p > 0.95f) {
-          isStudentSeated = true;
-          isTeacherTeaching = true; // Teacher starts teaching when students are seated!
-      }
-      
-      if (p < 0.50f) {
-          targetDoorAngle = -90.0f; // Stay open while walking in
-      } else if (p < 0.65f) {
-          float dp = (p - 0.50f) / 0.15f;
-          targetDoorAngle = -90.0f * (1.0f - dp); // Smoothly close
-      } else {
-          targetDoorAngle = 0.0f;
-      }
+
+       // Set isTeacherTeaching when teacher is fully seated/at podium (morningProgress >= 0.97f)
+       if (morningProgress >= 0.97f) {
+           isTeacherTeaching = true;
+       } else {
+           isTeacherTeaching = false;
+       }
     }
   }
 
